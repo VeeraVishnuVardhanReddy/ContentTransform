@@ -1,4 +1,3 @@
-
 :root {
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -373,6 +372,12 @@ select:focus {
   font-size: 18px;
 }
 
+.transform-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
 /* =========================
    RESULT
 ========================= */
@@ -554,18 +559,20 @@ footer {
   }
 
 }
-.transform-button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-  transform: none;
-}
+
+/* =========================
+   SPINNER
+========================= */
 
 .spinner {
   width: 15px;
   height: 15px;
+
   border: 2px solid rgba(255, 255, 255, 0.4);
   border-top-color: white;
+
   border-radius: 50%;
+
   animation: spin 0.7s linear infinite;
 }
 
@@ -707,13 +714,16 @@ footer {
   font-weight: 700;
 }
 
-
-/* Transformed Content */
+/* =========================
+   TRANSFORMED CONTENT
+========================= */
 
 .transformed-content {
   padding: 20px;
+
   border: 1px solid #e8d9f5;
   border-radius: 14px;
+
   background: linear-gradient(
     135deg,
     rgba(155, 61, 245, 0.06),
@@ -725,33 +735,166 @@ footer {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+
   gap: 15px;
+
   margin-bottom: 16px;
 }
 
 .transformed-header h3 {
   margin: 5px 0 0;
+
   color: #27212d;
+
   font-size: 18px;
 }
 
 .audience-badge {
   padding: 6px 10px;
+
   border-radius: 20px;
+
   background: rgba(155, 61, 245, 0.1);
+
   color: #8b32df;
+
   font-size: 11px;
   font-weight: 600;
+
   white-space: nowrap;
 }
 
 .transformed-text {
   padding: 16px;
+
   background: white;
+
   border: 1px solid #eee8f2;
+
   border-radius: 10px;
+
   color: #403846;
+
   font-size: 14px;
+
   line-height: 1.7;
+
   white-space: pre-wrap;
+}
+
+/* =========================
+   MODE SWITCH
+========================= */
+
+.mode-switch {
+  grid-column: 1 / -1;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: fit-content;
+
+  margin: 0 auto 0;
+
+  padding: 3px;
+
+  background: #f3edf8;
+
+  border-radius: 8px;
+
+  gap: 2px;
+}
+
+.mode-button {
+  border: none;
+
+  background: transparent;
+
+  padding: 7px 18px;
+
+  border-radius: 6px;
+
+  font-size: 12px;
+
+  font-weight: 600;
+
+  color: #766b7d;
+
+  cursor: pointer;
+
+  transition: all 0.2s ease;
+
+  white-space: nowrap;
+}
+
+.mode-button:hover {
+  color: #8b32df;
+}
+
+.mode-button.active {
+  background: white;
+
+  color: #8b32df;
+
+  box-shadow:
+    0 1px 5px rgba(0, 0, 0, 0.08);
+}
+
+/* =========================
+   FILE UPLOAD
+========================= */
+
+.file-upload {
+  margin-bottom: 16px;
+}
+
+.file-upload input {
+  display: none;
+}
+
+.file-upload-box {
+  display: flex;
+
+  align-items: center;
+
+  gap: 14px;
+
+  padding: 18px;
+
+  border: 2px dashed #d9c8e8;
+
+  border-radius: 12px;
+
+  background: #faf8fc;
+
+  cursor: pointer;
+
+  transition: all 0.2s ease;
+}
+
+.file-upload-box:hover {
+  border-color: #9b3df5;
+
+  background: #f8f2fc;
+}
+
+.upload-icon {
+  font-size: 28px;
+}
+
+.file-upload-box strong {
+  display: block;
+
+  color: #403846;
+
+  font-size: 14px;
+}
+
+.file-upload-box p {
+  margin: 4px 0 0;
+
+  color: #8a7e91;
+
+  font-size: 12px;
 }

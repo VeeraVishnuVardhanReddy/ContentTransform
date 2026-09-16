@@ -1,4 +1,3 @@
-
 import { useState } from 'react'
 import './App.css'
 
@@ -8,12 +7,20 @@ function App() {
   const [tone, setTone] = useState('Professional')
   const [outputType, setOutputType] = useState('LinkedIn Post')
 
+  const [mode, setMode] = useState('Transform')
+  const [file, setFile] = useState(null)
+
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
 
+
+  /* =========================
+     TRANSFORM / GENERATE
+  ========================= */
+
   const handleTransform = async () => {
-    if (!content.trim()) {
-      alert('Please enter some content first.')
+    if (!content.trim() && !file) {
+      alert('Please enter some content or upload a file first.')
       return
     }
 
@@ -21,18 +28,55 @@ function App() {
     setResult(null)
 
     try {
-      const response = await fetch('http://localhost:5000/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: content,
-          audience: audience,
-          tone: tone,
-          outputType: outputType,
-        }),
-      })
+      const endpoint =
+        mode === 'Generate'
+          ? 'http://localhost:5000/generate'
+          : 'http://localhost:5000/analyze'
+
+      let response
+
+      /*
+        TRANSFORM + FILE
+
+        Send the actual file to the backend.
+        Backend will extract the content from the file.
+      */
+
+      if (mode === 'Transform' && file) {
+        const formData = new FormData()
+
+        formData.append('file', file)
+        formData.append('content', content)
+        formData.append('audience', audience)
+        formData.append('tone', tone)
+        formData.append('outputType', outputType)
+
+        response = await fetch(endpoint, {
+          method: 'POST',
+          body: formData,
+        })
+      }
+
+      /*
+        GENERATE or TRANSFORM WITHOUT FILE
+
+        Send normal JSON.
+      */
+
+      else {
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            content: content,
+            audience: audience,
+            tone: tone,
+            outputType: outputType,
+          }),
+        })
+      }
 
       const data = await response.json()
 
@@ -46,13 +90,18 @@ function App() {
       console.error('Error:', error)
 
       alert(
-        'Failed to analyze the content. Please make sure your backend is running on port 5000.'
+        error.message ||
+          'Failed to process the content. Please make sure your backend is running on port 5000.'
       )
-
     } finally {
       setLoading(false)
     }
   }
+
+
+  /* =========================
+     COPY RESULT
+  ========================= */
 
   const handleCopy = async () => {
     if (!result) return
@@ -84,6 +133,7 @@ ${result.recommendations?.map((item, index) => `${index + 1}. ${item}`).join('\n
       alert('Failed to copy result.')
     }
   }
+
 
   return (
     <div className="app">
@@ -133,6 +183,37 @@ ${result.recommendations?.map((item, index) => `${index + 1}. ${item}`).join('\n
 
         <section className="transformer" id="transform">
 
+          {/* MODE SWITCH */}
+
+          <div className="mode-switch">
+
+            <button
+              type="button"
+              className={
+                mode === 'Transform'
+                  ? 'mode-button active'
+                  : 'mode-button'
+              }
+              onClick={() => setMode('Transform')}
+            >
+              Transform
+            </button>
+
+            <button
+              type="button"
+              className={
+                mode === 'Generate'
+                  ? 'mode-button active'
+                  : 'mode-button'
+              }
+              onClick={() => setMode('Generate')}
+            >
+              Generate
+            </button>
+
+          </div>
+
+
           {/* INPUT CARD */}
 
           <div className="card input-card">
@@ -140,8 +221,15 @@ ${result.recommendations?.map((item, index) => `${index + 1}. ${item}`).join('\n
             <div className="card-header">
 
               <div>
+
                 <h2>Your Content</h2>
-                <p>Paste the content you want to transform.</p>
+
+                <p>
+                  {mode === 'Generate'
+                    ? 'Describe what you want to generate.'
+                    : 'Paste the content you want to transform.'}
+                </p>
+
               </div>
 
               <span className="character-count">
@@ -151,12 +239,65 @@ ${result.recommendations?.map((item, index) => `${index + 1}. ${item}`).join('\n
             </div>
 
 
+            {/* FILE UPLOAD */}
+
+            <div className="file-upload">
+
+              <input
+                type="file"
+                id="content-file"
+                accept=".pdf,.ppt,.pptx,.txt,.png,.jpg,.jpeg,.mp3,.wav,.mp4,.mov"
+                onChange={(e) => {
+                  const selectedFile = e.target.files?.[0]
+
+                  setFile(selectedFile || null)
+                }}
+              />
+
+              <label
+                htmlFor="content-file"
+                className="file-upload-box"
+              >
+
+                <span className="upload-icon">
+                  📁
+                </span>
+
+                <div>
+
+                  <strong>
+                    {file
+                      ? file.name
+                      : 'Upload your content'}
+                  </strong>
+
+                  <p>
+                    {file
+                      ? `${(
+                          file.size /
+                          1024 /
+                          1024
+                        ).toFixed(2)} MB`
+                      : 'PDF, PPT, Image, Audio, Video or Text'}
+                  </p>
+
+                </div>
+
+              </label>
+
+            </div>
+
+
             {/* TEXTAREA */}
 
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Paste your content here..."
+              placeholder={
+                mode === 'Generate'
+                  ? 'Describe what you want to generate...'
+                  : 'Paste your content here...'
+              }
             />
 
 
@@ -168,17 +309,37 @@ ${result.recommendations?.map((item, index) => `${index + 1}. ${item}`).join('\n
 
               <div className="option">
 
-                <label>Audience</label>
+                <label>
+                  Audience
+                </label>
 
                 <select
                   value={audience}
-                  onChange={(e) => setAudience(e.target.value)}
+                  onChange={(e) =>
+                    setAudience(e.target.value)
+                  }
                 >
-                  <option>General</option>
-                  <option>Students</option>
-                  <option>Developers</option>
-                  <option>Business Professionals</option>
-                  <option>Executives</option>
+
+                  <option>
+                    General
+                  </option>
+
+                  <option>
+                    Students
+                  </option>
+
+                  <option>
+                    Developers
+                  </option>
+
+                  <option>
+                    Business Professionals
+                  </option>
+
+                  <option>
+                    Executives
+                  </option>
+
                 </select>
 
               </div>
@@ -188,17 +349,37 @@ ${result.recommendations?.map((item, index) => `${index + 1}. ${item}`).join('\n
 
               <div className="option">
 
-                <label>Tone</label>
+                <label>
+                  Tone
+                </label>
 
                 <select
                   value={tone}
-                  onChange={(e) => setTone(e.target.value)}
+                  onChange={(e) =>
+                    setTone(e.target.value)
+                  }
                 >
-                  <option>Professional</option>
-                  <option>Casual</option>
-                  <option>Friendly</option>
-                  <option>Persuasive</option>
-                  <option>Technical</option>
+
+                  <option>
+                    Professional
+                  </option>
+
+                  <option>
+                    Casual
+                  </option>
+
+                  <option>
+                    Friendly
+                  </option>
+
+                  <option>
+                    Persuasive
+                  </option>
+
+                  <option>
+                    Technical
+                  </option>
+
                 </select>
 
               </div>
@@ -210,7 +391,9 @@ ${result.recommendations?.map((item, index) => `${index + 1}. ${item}`).join('\n
 
             <div className="output-section">
 
-              <label>Output Format</label>
+              <label>
+                Output Format
+              </label>
 
               <div className="output-options">
 
@@ -218,6 +401,8 @@ ${result.recommendations?.map((item, index) => `${index + 1}. ${item}`).join('\n
                   'LinkedIn Post',
                   'Advisory',
                   'Executive Summary',
+                  'Presentation',
+                  'PDF',
                 ].map((type) => (
 
                   <button
@@ -228,7 +413,9 @@ ${result.recommendations?.map((item, index) => `${index + 1}. ${item}`).join('\n
                         ? 'output-button active'
                         : 'output-button'
                     }
-                    onClick={() => setOutputType(type)}
+                    onClick={() =>
+                      setOutputType(type)
+                    }
                   >
                     {type}
                   </button>
@@ -240,7 +427,7 @@ ${result.recommendations?.map((item, index) => `${index + 1}. ${item}`).join('\n
             </div>
 
 
-            {/* TRANSFORM BUTTON */}
+            {/* TRANSFORM / GENERATE BUTTON */}
 
             <button
               type="button"
@@ -250,15 +437,31 @@ ${result.recommendations?.map((item, index) => `${index + 1}. ${item}`).join('\n
             >
 
               {loading ? (
+
                 <>
+
                   <span className="spinner"></span>
-                  Analyzing...
+
+                  {mode === 'Generate'
+                    ? 'Generating...'
+                    : 'Analyzing...'}
+
                 </>
+
               ) : (
+
                 <>
-                  Transform Content
-                  <span>→</span>
+
+                  {mode === 'Generate'
+                    ? 'Generate Content'
+                    : 'Transform Content'}
+
+                  <span>
+                    →
+                  </span>
+
                 </>
+
               )}
 
             </button>
@@ -273,11 +476,15 @@ ${result.recommendations?.map((item, index) => `${index + 1}. ${item}`).join('\n
             <div className="card-header">
 
               <div>
-                <h2>Generated Content</h2>
+
+                <h2>
+                  Generated Content
+                </h2>
 
                 <p>
                   Your transformed content will appear here.
                 </p>
+
               </div>
 
             </div>
@@ -298,7 +505,9 @@ ${result.recommendations?.map((item, index) => `${index + 1}. ${item}`).join('\n
                   </div>
 
                   <h3>
-                    Analyzing your content...
+                    {mode === 'Generate'
+                      ? 'Generating your content...'
+                      : 'Analyzing your content...'}
                   </h3>
 
                   <p>
@@ -307,10 +516,9 @@ ${result.recommendations?.map((item, index) => `${index + 1}. ${item}`).join('\n
 
                 </div>
 
-
               ) : result ? (
 
-                /* TRANSFORMED CONTENT */
+                /* RESULT */
 
                 <div className="transformed-content">
 
@@ -319,13 +527,19 @@ ${result.recommendations?.map((item, index) => `${index + 1}. ${item}`).join('\n
                   <div className="transformed-header">
 
                     <div>
+
                       <span className="result-label">
-                        ✦ TRANSFORMED CONTENT
+                        ✦{' '}
+                        {mode === 'Generate'
+                          ? 'GENERATED CONTENT'
+                          : 'TRANSFORMED CONTENT'}
                       </span>
 
                       <h3>
-                        {result.topic || 'Generated Content'}
+                        {result.topic ||
+                          'Generated Content'}
                       </h3>
+
                     </div>
 
                     <span className="audience-badge">
@@ -335,142 +549,336 @@ ${result.recommendations?.map((item, index) => `${index + 1}. ${item}`).join('\n
                   </div>
 
 
-                  {/* MAIN TRANSFORMED TEXT */}
+                  {/* PRESENTATION RESULT */}
 
-                  <div className="transformed-text">
+                  {outputType === 'Presentation' &&
+                  result.slides?.length > 0 ? (
 
-                    {outputType === 'LinkedIn Post' && (
-                      <>
-                        <strong>{result.summary}</strong>
+                    <div className="transformed-text">
 
-                        {result.keyFacts?.length > 0 && (
-                          <>
-                            {'\n\n'}
-                            {result.keyFacts.map((fact, index) => (
-                              <span key={index}>
-                                • {fact}
-                                {'\n'}
-                              </span>
-                            ))}
-                          </>
-                        )}
+                      {result.slides.map(
+                        (slide, index) => (
 
-                        {result.impact?.length > 0 && (
-                          <>
-                            {'\n'}
-                            <strong>Impact</strong>
-                            {'\n'}
-                            {result.impact.map((item, index) => (
-                              <span key={index}>
-                                • {item}
-                                {'\n'}
-                              </span>
-                            ))}
-                          </>
-                        )}
+                          <div
+                            key={index}
+                            style={{
+                              marginBottom: '24px',
+                            }}
+                          >
 
-                        {result.recommendations?.length > 0 && (
-                          <>
-                            {'\n'}
-                            <strong>Recommendations</strong>
-                            {'\n'}
-                            {result.recommendations.map(
-                              (recommendation, index) => (
-                                <span key={index}>
-                                  {index + 1}. {recommendation}
-                                  {'\n'}
-                                </span>
-                              )
+                            <strong>
+                              Slide {index + 1}:{' '}
+                              {slide.title}
+                            </strong>
+
+                            <div
+                              style={{
+                                marginTop: '8px',
+                              }}
+                            >
+
+                              {slide.content?.map(
+                                (item, itemIndex) => (
+
+                                  <div
+                                    key={itemIndex}
+                                  >
+                                    • {item}
+                                  </div>
+
+                                )
+                              )}
+
+                            </div>
+
+                            {slide.speakerNotes && (
+
+                              <div
+                                style={{
+                                  marginTop: '10px',
+                                  fontSize: '13px',
+                                }}
+                              >
+
+                                <strong>
+                                  Speaker Notes:
+                                </strong>
+
+                                <div>
+                                  {slide.speakerNotes}
+                                </div>
+
+                              </div>
+
                             )}
-                          </>
-                        )}
-                      </>
-                    )}
+
+                          </div>
+
+                        )
+                      )}
+
+                    </div>
+
+                  ) : (
+
+                    /* NORMAL RESULT */
+
+                    <div className="transformed-text">
+
+                      {outputType === 'LinkedIn Post' && (
+
+                        <>
+
+                          <strong>
+                            {result.summary}
+                          </strong>
+
+                          {result.keyFacts?.length > 0 && (
+
+                            <>
+
+                              {'\n\n'}
+
+                              {result.keyFacts.map(
+                                (fact, index) => (
+
+                                  <span key={index}>
+                                    • {fact}
+                                    {'\n'}
+                                  </span>
+
+                                )
+                              )}
+
+                            </>
+
+                          )}
 
 
-                    {outputType === 'Advisory' && (
-                      <>
-                        <strong>Advisory</strong>
+                          {result.impact?.length > 0 && (
 
-                        {'\n\n'}
+                            <>
 
-                        {result.summary}
+                              {'\n'}
 
-                        {result.impact?.length > 0 && (
-                          <>
-                            {'\n\n'}
-                            <strong>Key Considerations</strong>
-                            {'\n'}
-                            {result.impact.map((item, index) => (
-                              <span key={index}>
-                                • {item}
-                                {'\n'}
-                              </span>
-                            ))}
-                          </>
-                        )}
+                              <strong>
+                                Impact
+                              </strong>
 
-                        {result.recommendations?.length > 0 && (
-                          <>
-                            {'\n'}
-                            <strong>Recommended Actions</strong>
-                            {'\n'}
-                            {result.recommendations.map(
-                              (recommendation, index) => (
-                                <span key={index}>
-                                  {index + 1}. {recommendation}
-                                  {'\n'}
-                                </span>
-                              )
-                            )}
-                          </>
-                        )}
-                      </>
-                    )}
+                              {'\n'}
+
+                              {result.impact.map(
+                                (item, index) => (
+
+                                  <span key={index}>
+                                    • {item}
+                                    {'\n'}
+                                  </span>
+
+                                )
+                              )}
+
+                            </>
+
+                          )}
 
 
-                    {outputType === 'Executive Summary' && (
-                      <>
-                        <strong>Executive Summary</strong>
+                          {result.recommendations?.length > 0 && (
 
-                        {'\n\n'}
+                            <>
 
-                        {result.summary}
+                              {'\n'}
 
-                        {result.keyFacts?.length > 0 && (
-                          <>
-                            {'\n\n'}
-                            <strong>Key Points</strong>
-                            {'\n'}
-                            {result.keyFacts.map((fact, index) => (
-                              <span key={index}>
-                                • {fact}
-                                {'\n'}
-                              </span>
-                            ))}
-                          </>
-                        )}
+                              <strong>
+                                Recommendations
+                              </strong>
 
-                        {result.impact?.length > 0 && (
-                          <>
-                            {'\n'}
-                            <strong>Business Impact</strong>
-                            {'\n'}
-                            {result.impact.map((item, index) => (
-                              <span key={index}>
-                                • {item}
-                                {'\n'}
-                              </span>
-                            ))}
-                          </>
-                        )}
-                      </>
-                    )}
+                              {'\n'}
 
-                  </div>
+                              {result.recommendations.map(
+                                (recommendation, index) => (
+
+                                  <span key={index}>
+                                    {index + 1}. {recommendation}
+                                    {'\n'}
+                                  </span>
+
+                                )
+                              )}
+
+                            </>
+
+                          )}
+
+                        </>
+
+                      )}
+
+
+                      {outputType === 'Advisory' && (
+
+                        <>
+
+                          <strong>
+                            Advisory
+                          </strong>
+
+                          {'\n\n'}
+
+                          {result.summary}
+
+                          {result.impact?.length > 0 && (
+
+                            <>
+
+                              {'\n\n'}
+
+                              <strong>
+                                Key Considerations
+                              </strong>
+
+                              {'\n'}
+
+                              {result.impact.map(
+                                (item, index) => (
+
+                                  <span key={index}>
+                                    • {item}
+                                    {'\n'}
+                                  </span>
+
+                                )
+                              )}
+
+                            </>
+
+                          )}
+
+                          {result.recommendations?.length > 0 && (
+
+                            <>
+
+                              {'\n'}
+
+                              <strong>
+                                Recommended Actions
+                              </strong>
+
+                              {'\n'}
+
+                              {result.recommendations.map(
+                                (recommendation, index) => (
+
+                                  <span key={index}>
+                                    {index + 1}. {recommendation}
+                                    {'\n'}
+                                  </span>
+
+                                )
+                              )}
+
+                            </>
+
+                          )}
+
+                        </>
+
+                      )}
+
+
+                      {outputType === 'Executive Summary' && (
+
+                        <>
+
+                          <strong>
+                            Executive Summary
+                          </strong>
+
+                          {'\n\n'}
+
+                          {result.summary}
+
+                          {result.keyFacts?.length > 0 && (
+
+                            <>
+
+                              {'\n\n'}
+
+                              <strong>
+                                Key Points
+                              </strong>
+
+                              {'\n'}
+
+                              {result.keyFacts.map(
+                                (fact, index) => (
+
+                                  <span key={index}>
+                                    • {fact}
+                                    {'\n'}
+                                  </span>
+
+                                )
+                              )}
+
+                            </>
+
+                          )}
+
+                          {result.impact?.length > 0 && (
+
+                            <>
+
+                              {'\n'}
+
+                              <strong>
+                                Business Impact
+                              </strong>
+
+                              {'\n'}
+
+                              {result.impact.map(
+                                (item, index) => (
+
+                                  <span key={index}>
+                                    • {item}
+                                    {'\n'}
+                                  </span>
+
+                                )
+                              )}
+
+                            </>
+
+                          )}
+
+                        </>
+
+                      )}
+
+
+                      {outputType === 'PDF' && (
+
+                        <>
+
+                          <strong>
+                            PDF Content
+                          </strong>
+
+                          {'\n\n'}
+
+                          {result.transformedContent ||
+                            result.summary}
+
+                        </>
+
+                      )}
+
+                    </div>
+
+                  )}
 
                 </div>
-
 
               ) : (
 
@@ -488,7 +896,12 @@ ${result.recommendations?.map((item, index) => `${index + 1}. ${item}`).join('\n
 
                   <p>
                     Enter your content and click
-                    <strong> Transform Content </strong>
+                    <strong>
+                      {' '}
+                      {mode === 'Generate'
+                        ? 'Generate Content'
+                        : 'Transform Content'}{' '}
+                    </strong>
                     to generate your result.
                   </p>
 
@@ -535,4 +948,3 @@ ${result.recommendations?.map((item, index) => `${index + 1}. ${item}`).join('\n
 }
 
 export default App
-
